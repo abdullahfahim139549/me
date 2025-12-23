@@ -5,20 +5,28 @@
 <title>Admin Dashboard</title>
 
 <style>
-body { font-family: Arial; padding: 10px; }
-input, button {
-  width: 100%;
+body {
+  font-family: Arial;
   padding: 10px;
-  margin: 5px 0;
+}
+button {
+  width: 100%;
+  padding: 12px;
   font-size: 16px;
+  margin-bottom: 10px;
 }
 #photos {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
   gap: 10px;
 }
-.card { position: relative; }
-.card img { width: 100%; border-radius: 6px; }
+.card {
+  position: relative;
+}
+.card img {
+  width: 100%;
+  border-radius: 6px;
+}
 .delete {
   position: absolute;
   top: 5px;
@@ -26,89 +34,12 @@ input, button {
   background: red;
   color: white;
   border: none;
-  padding: 5px;
+  padding: 6px;
+  border-radius: 50%;
+  font-size: 14px;
 }
-</style>
-</head>
-
-<body>
-<h2>Admin Dashboard</h2>
-
-<input id="search" placeholder="Search by user email">
-<button id="showAll">Show All Photos</button>
-
-<div id="photos"></div>
-
-<script type="module">
-import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-import { getAuth, GoogleAuthProvider, signInWithPopup } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
-import { getFirestore, collection, onSnapshot, deleteDoc, doc, query, where } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
-
-if ("Notification" in window) Notification.requestPermission();
-
-const app = initializeApp({
-  apiKey: "AIzaSyD3kgygxLcOZFO6Tk6Hs_MffUHLMiGll6g",
-  authDomain: "photos-9c2ac.firebaseapp.com",
-  projectId: "photos-9c2ac"
-});
-
-const auth = getAuth(app);
-const db = getFirestore(app);
-
-const result = await signInWithPopup(auth, new GoogleAuthProvider());
-
-if (result.user.email !== "abdullahfahim139549@gmail.com") {
-  alert("Unauthorized");
-  throw new Error("Unauthorized");
-}
-
-let unsub;
-let firstLoad = true;
-
-function load(q) {
-  if (unsub) unsub();
-
-  unsub = onSnapshot(q, snap => {
-    const div = document.getElementById("photos");
-    div.innerHTML = "";
-
-    snap.docChanges().forEach(c => {
-      if (c.type === "added" && !firstLoad && Notification.permission === "granted") {
-        new Notification("New Photo 📸", {
-          body: c.doc.data().email,
-          icon: c.doc.data().url
-        });
-      }
-    });
-
-    snap.forEach(d => {
-      const card = document.createElement("div");
-      card.className = "card";
-
-      const img = document.createElement("img");
-      img.src = d.data().url;
-
-      const del = document.createElement("button");
-      del.className = "delete";
-      del.textContent = "✕";
-      del.onclick = async () => {
-        if (confirm("Delete this photo?"))
-          await deleteDoc(doc(db, "photos", d.id));
-      };
-
-      card.append(img, del);
-      div.appendChild(card);
-    });
-
-    firstLoad = false;
-  });
-}
-
-load(collection(db, "photos"));
-
-document.getElementById("showAll").onclick = () => {
-  load(collection(db, "photos"));
-};
+.email {
+  font-size:
 
 document.getElementById("search").oninput = e => {
   const v = e.target.value.trim();
