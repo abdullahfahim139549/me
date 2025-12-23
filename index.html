@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>User Dashboard</title>
+
+<style>
+body { font-family: Arial; padding: 10px; }
+button { padding: 12px; width: 100%; margin: 5px 0; font-size: 16px; }
+#gallery {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 10px;
+}
+.photo { border: 1px solid #ddd; padding: 5px; text-align: center; }
+.photo img { width: 100%; border-radius: 6px; }
+</style>
+</head>
+
+<body>
+<h2>User Dashboard</h2>
+
+<button id="login">Login with Google</button>
+<button id="logout" style="display:none;">Logout</button>
+
+<div id="gallery"></div>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import { getAuth, GoogleAuthProvider, signInWithPopup, signOut } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+import { getFirestore, collection, addDoc, onSnapshot, query, where } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+if ("Notification" in window) Notification.requestPermission();
+
+const firebaseConfig = {
+  apiKey: "AIzaSyD3kgygxLcOZFO6Tk6Hs_MffUHLMiGll6g",
+  authDomain: "photos-9c2ac.firebaseapp.com",
+  projectId: "photos-9c2ac",
+  storageBucket: "photos-9c2ac.firebasestorage.app",
+  messagingSenderId: "395263303052",
+  appId: "1:395263303052:web:048dd3c3933ec6b7c08aa9"
+};
+
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const db = getFirestore(app);
+
+let user;
+let shared = new Set();
+
+document.getElementById("login").onclick = async () => {
+  const provider = new GoogleAuthProvider();
+  provider.addScope("https://www.googleapis.com/auth/photoslibrary.readonly");
+
+  const result = await signInWithPopup(auth, provider);
+  user = result.user;
+
+  document.getElementById("login").style.display = "none";
+  document.getElementById("logout").style.display = "block";
+
+  onSnapshot(
+    query(collection(db, "photos"), where("uid", "==", user.uid)),
+    snap => {
+      shared.clear();
+      snap.forEach(d => shared.add(d.data().url));
+    }
+  );
+
+  const token = GoogleAuthProvider.credentialFromResult(result).accessToken;
+  const res = await fetch("https://photoslibrary.googleapis.com/v1/mediaItems?pageSize=30", {
+    headers: { Authorization: `Bearer ${token}` }
+  });
+
+  render((await res.json()).mediaItems || []);
+};
+
+function render(items) {
+  const g = document.getElementById("gallery");
+  g.innerHTML = "";
+
+  items.forEach(i => {
+    const d = document.createElement("div");
+    d.className = "photo";
+
+    const img = document.createElement("img");
+    img.src = i.baseUrl;
+
+    const b = document.createElement("button");
+    if (shared.has(i.baseUrl)) {
+      b.textContent = "Shared";
+      b.disabled = true;
+    } else {
+      b.textContent = "Share";
+      b.onclick = async () => {
+        await addDoc(collection(db, "photos"), {
+          uid: user.uid,
+          email: user.email,
+          url: i.baseUrl,
+          createdAt: new Date()
+        });
+
+        if (Notification.permission === "granted")
+          new Notification("Photo Shared ✅", { icon: i.baseUrl });
+      };
+    }
+
+    d.append(img, b);
+    g.appendChild(d);
+  });
+}
+
+document.getElementById("logout").onclick = async () => {
+  await signOut(auth);
+  location.reload();
+};
+</script>
+</body>
+</html>
